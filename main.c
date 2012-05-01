@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
 	int comm;
 	int c;
 
-	while ((c = getopt(argc, argv, "cdi:o:p:12")) != -1) {
+	while ((c = getopt(argc, argv, "cdi:o:p:12t")) != -1) {
 		switch (c) {
 			case 'c':
 				comm = ENCODE;
@@ -42,6 +42,9 @@ int main(int argc, char **argv) {
 			case 'p':
 				p_value = (char*) malloc(strlen(optarg) + 1);
 				strcpy(p_value, optarg);
+				break;
+			case 't':
+				tests_functions();
 				break;
 			default:
 				fprintf(stderr, "Argumento desconhecido!\n");

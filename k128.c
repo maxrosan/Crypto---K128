@@ -42,13 +42,29 @@ w64 point(w64 b, w64 c) {
 	int i;
 
 	uint64_to_bytes(b, 0, b_bytes);
-	uint64_to_bytes(c, 0, b_bytes);
+	uint64_to_bytes(c, 0, c_bytes);
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 		a_bytes[i] = expr[b_bytes[i]] ^ expr[c_bytes[i]];
 	}
 
 	return to_uint64(a_bytes, 0);
+}
+
+w64 point_inverse_left(w64 a, w64 c) {
+	w8 a_bytes[8];
+	w8 b_bytes[8];
+	w8 c_bytes[8];
+	int i;
+
+	uint64_to_bytes(a, 0, a_bytes);
+	uint64_to_bytes(c, 0, c_bytes);
+
+	for (i = 0; i < 8; i++) {
+		b_bytes[i] = log[ a_bytes[i] ^ expr[c_bytes[i]] ];
+	}
+
+	return to_uint64(b_bytes, 0);
 }
 
 /*
@@ -153,6 +169,27 @@ encode_second_iteration(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_
 }
 
 void
+encode_second_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_new_f) {
+
+	assert(X_new_e != 0);
+	assert(X_new_f != 0);
+	assert(skeys != 0);
+
+	w64 Ke = skeys[it+2];
+	w64 Kf = skeys[it+3];
+	w64 Y1, Z1, Y2, Z2;
+
+	Y1 = Xe ^ Xf;
+	Z1 = Xe + Xf;
+
+	Y2 = point((point(Xe, Y1) + Z1), Kf);
+	Z2 = point(Ke, Y1) + Y2;
+	
+	*X_new_e = Xe + Y2;
+	*X_new_f = Xf + Z2;
+}
+
+void
 encode_last_iteration(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X_f_final) {
 
 	assert(X_e_final != 0);
@@ -160,7 +197,73 @@ encode_last_iteration(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X_f_final
 	assert(skeys != 0);
 
 	*X_e_final = point(Xf, skeys[(NSUBKEYS << 2) + 1]);
-	*X_f_final = Xe + skeys[(NSUBKEYS << 2) + 1];
+	*X_f_final = Xe + skeys[(NSUBKEYS << 2) + 2];
+}
+
+void
+encode_last_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X_f_final) {
+
+	assert(X_e_final != 0);
+	assert(X_f_final != 0);
+	assert(skeys != 0);
+
+	
+	*X_f_final = point_inverse_left(Xe, skeys[(NSUBKEYS << 2) + 1]);
+	*X_e_final = Xf + (~skeys[(NSUBKEYS << 2) + 2]);
+}
+ 
+void
+print_hex(w8 *buf, int sz) {
+	int i;
+	for (i = 0; i < sz; i++) {
+		printf("0x%x ", buf[i]);
+	}
+}
+
+void
+k128_encode(w8 in[16], w8 out[16], w64 *skeys) {
+
+	int i;
+
+	assert(skeys != 0);
+	
+	w64 A = to_uint64(in, 0), new_A, new_B;
+	w64 B = to_uint64(in, 8);
+
+	printf("IN = "); print_hex(in, 16); printf("\n");
+
+	for (i = 1; i <= ROUNDS; i++) {
+		encode_first_iteration(A, B, skeys, i, &new_A, &new_B);
+
+		uint64_to_bytes(new_A, 0, out);
+		uint64_to_bytes(new_B, 8, out);
+		printf("F[%d] = ", i); print_hex(out, 16); printf("\n");
+
+		encode_second_iteration(new_A, new_B, skeys, i, &A, &B);
+
+		uint64_to_bytes(A, 0, out);
+		uint64_to_bytes(B, 8, out);
+		printf("S[%d] = ", i); print_hex(out, 16); printf("\n");
+	}
+
+	encode_last_iteration(A, B, skeys, &new_A, &new_B);
+	uint64_to_bytes(new_A, 0, out);
+	uint64_to_bytes(new_B, 8, out);
+
+	printf("LI = "); print_hex(out, 16); printf("\n\n\n");
+}
+
+void
+k128_decode(w8 in[16], w8 out[16], w64 *skeys) {
+
+	w64 A = to_uint64(in, 0), new_A, new_B;
+	w64 B = to_uint64(in, 8);
+
+	encode_last_iteration_inverse(A, B, skeys, &new_A, &new_B);
+	uint64_to_bytes(new_A, 0, out);
+	uint64_to_bytes(new_B, 8, out);
+
+	printf("LI(-1) = "); print_hex(out, 16); printf("\n\n\n");
 }
 
 void
@@ -171,14 +274,6 @@ cbc_crypt(w8 in[8], w8 out[8]) {
 void
 cbc_decrypt(w8 in[8], w8 out[8]) {
 	memcpy(out, in, 8);
-}
-
-void
-print_hex(w8 *buf, int sz) {
-	int i;
-	for (i = 0; i < sz; i++) {
-		printf("0x%x ", buf[i]);
-	}
 }
 
 void
@@ -351,9 +446,21 @@ _test_convert() {
 	printf("_test_convert OK\n");
 }
 
+_test_k128_encode() {
+	w64 *keys;
+	char *sec = "Exemplo01";
+	w8 in[16] = {44,226,147,190,69,21,122,111,174,133,120,23,123,142,31,24}, out[16];
+
+	generate_keys(sec, &keys);
+
+	k128_encode(in, out, keys);
+	k128_decode(out, in, keys);
+}
+
 void tests_functions(void) {
 
 	_test_generate_keys();
 	_test_convert();
+	_test_k128_encode();
 
 }
