@@ -35,7 +35,7 @@ shift_circ_left(w64 a, int b) {
 	return (a << b) | (a >> (64 - b));
 }
 
-w64 point(w64 b, w64 c) {
+w64 point(w64 b, w64 c) { // A = B . C
 	w8 a_bytes[8];
 	w8 b_bytes[8];
 	w8 c_bytes[8];
@@ -51,7 +51,7 @@ w64 point(w64 b, w64 c) {
 	return to_uint64(a_bytes, 0);
 }
 
-w64 point_inverse_left(w64 a, w64 c) {
+w64 point_inverse_left(w64 a, w64 c) { // A = B . C => B = A . C
 	w8 a_bytes[8];
 	w8 b_bytes[8];
 	w8 c_bytes[8];
@@ -148,6 +148,21 @@ encode_first_iteration(w64 Xa, w64 Xb, w64 *skeys, w8 it, w64 *X_new_a, w64 *X_n
 }
 
 void
+encode_first_iteration_inverse(w64 Xa, w64 Xb, w64 *skeys, w8 it, w64 *X_new_a, w64 *X_new_b) {
+
+	assert(X_new_a != 0);
+	assert(X_new_b != 0);
+	assert(skeys != 0);
+
+	w64 Ka = skeys[it];
+	w64 Kb = skeys[it+1];
+
+	*X_new_a = point_inverse_left(Xa, Ka);
+	*X_new_b = Xb + (~Kb) + 1;
+}
+
+
+void
 encode_second_iteration(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_new_f) {
 
 	assert(X_new_e != 0);
@@ -156,16 +171,15 @@ encode_second_iteration(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_
 
 	w64 Ke = skeys[it+2];
 	w64 Kf = skeys[it+3];
-	w64 Y1, Z1, Y2, Z2;
+	w64 Y1, Y2, Z;
 
 	Y1 = Xe ^ Xf;
-	Z1 = Xe + Xf;
 
-	Y2 = point((point(Xe, Y1) + Z1), Kf);
-	Z2 = point(Ke, Y1) + Y2;
+	Y2 = point((point(Ke, Y1) + Y1), Kf);
+	Z = point(Ke, Y1) + Y2;
 	
-	*X_new_e = Xe + Y2;
-	*X_new_f = Xf + Z2;
+	*X_new_e = Z ^ Xe;
+	*X_new_f = Z ^ Xf;
 }
 
 void
@@ -175,18 +189,7 @@ encode_second_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e,
 	assert(X_new_f != 0);
 	assert(skeys != 0);
 
-	w64 Ke = skeys[it+2];
-	w64 Kf = skeys[it+3];
-	w64 Y1, Z1, Y2, Z2;
-
-	Y1 = Xe ^ Xf;
-	Z1 = Xe + Xf;
-
-	Y2 = point((point(Xe, Y1) + Z1), Kf);
-	Z2 = point(Ke, Y1) + Y2;
-	
-	*X_new_e = Xe + Y2;
-	*X_new_f = Xf + Z2;
+	encode_second_iteration(Xe, Xf, skeys, it, X_new_e, X_new_f);
 }
 
 void
@@ -209,7 +212,7 @@ encode_last_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X
 
 	
 	*X_f_final = point_inverse_left(Xe, skeys[(NSUBKEYS << 2) + 1]);
-	*X_e_final = Xf + (~skeys[(NSUBKEYS << 2) + 2]);
+	*X_e_final = Xf + (~skeys[(NSUBKEYS << 2) + 2]) + 1;
 }
  
 void
@@ -230,31 +233,27 @@ k128_encode(w8 in[16], w8 out[16], w64 *skeys) {
 	w64 A = to_uint64(in, 0), new_A, new_B;
 	w64 B = to_uint64(in, 8);
 
-	printf("IN = "); print_hex(in, 16); printf("\n");
+	LOG("L = 0x%llx 0x%llx", A, B);
 
 	for (i = 1; i <= ROUNDS; i++) {
 		encode_first_iteration(A, B, skeys, i, &new_A, &new_B);
-
-		uint64_to_bytes(new_A, 0, out);
-		uint64_to_bytes(new_B, 8, out);
-		printf("F[%d] = ", i); print_hex(out, 16); printf("\n");
+		LOG("1(%d) = 0x%llx 0x%llx", i, new_A, new_B);
 
 		encode_second_iteration(new_A, new_B, skeys, i, &A, &B);
-
-		uint64_to_bytes(A, 0, out);
-		uint64_to_bytes(B, 8, out);
-		printf("S[%d] = ", i); print_hex(out, 16); printf("\n");
+		LOG("2(%d) = 0x%llx 0x%llx", i, A, B);
 	}
 
 	encode_last_iteration(A, B, skeys, &new_A, &new_B);
 	uint64_to_bytes(new_A, 0, out);
 	uint64_to_bytes(new_B, 8, out);
 
-	printf("LI = "); print_hex(out, 16); printf("\n\n\n");
+	LOG("L = 0x%llx 0x%llx", new_A, new_B);
 }
 
 void
 k128_decode(w8 in[16], w8 out[16], w64 *skeys) {
+
+	int i;
 
 	w64 A = to_uint64(in, 0), new_A, new_B;
 	w64 B = to_uint64(in, 8);
@@ -263,7 +262,25 @@ k128_decode(w8 in[16], w8 out[16], w64 *skeys) {
 	uint64_to_bytes(new_A, 0, out);
 	uint64_to_bytes(new_B, 8, out);
 
-	printf("LI(-1) = "); print_hex(out, 16); printf("\n\n\n");
+	LOG("\n\n-LI = 0x%llx 0x%llx", new_A, new_B);
+
+	A = new_A;
+	B = new_B;
+
+	for (i = ROUNDS; i >= 1; i--) {
+
+		encode_second_iteration_inverse(A, B, skeys, i, &new_A, &new_B);
+		LOG("-2(%d) = 0x%llx 0x%llx", i, new_A, new_B);
+
+		encode_first_iteration_inverse(new_A, new_B, skeys, i, &A, &B);
+		LOG("-1(%d) = 0x%llx 0x%llx", i, A, B);
+
+	}
+
+	uint64_to_bytes(A, 0, out);
+	uint64_to_bytes(B, 8, out);
+
+	LOG("plain = 0x%llx 0x%llx", A, B);
 }
 
 void

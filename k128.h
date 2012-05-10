@@ -9,7 +9,7 @@
 
 #define ROUNDS 12
 #define NSUBKEYS (4*ROUNDS + 2)
-#define DEBUG 0
+#define DEBUG 1
 #define BLOCKS_BYTE 16
 
 #define LOG(MSG,...) if(DEBUG) printf(MSG "\n", ##__VA_ARGS__)
