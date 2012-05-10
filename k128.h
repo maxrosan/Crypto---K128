@@ -9,7 +9,12 @@
 
 #define ROUNDS 12
 #define NSUBKEYS (4*ROUNDS + 2)
-#define DEBUG 1	
+#define DEBUG 0
+#define BLOCKS_BYTE 16
+
+#define LOG(MSG,...) if(DEBUG) printf(MSG "\n", ##__VA_ARGS__)
+#define WFRT "%.2x %.2x %.2x %.2x %.2x %.2x %.2x %.2x"
+#define WORD(buf) (buf)[0],(buf)[1],(buf)[2],(buf)[3],(buf)[4],(buf)[5],(buf)[6],(buf)[7]
 
 
 void generate_keys(char *key, w64** k);
