@@ -54,17 +54,23 @@ int main(int argc, char **argv) {
 	//tests_functions();
 	
 	if (comm == ENCODE) {
+		CBC_Crypt c;
+
 		assert(i_value != 0);
 		assert(o_value != 0);
 		assert(p_value != 0);
 
-		cbc_encode(i_value, o_value);
+		k128_init(&c, p_value);
+		cbc_encode(&c, i_value, o_value);
 	} else if (comm == DECODE) {
+		CBC_Crypt c;
+
 		assert(i_value != 0);
 		assert(o_value != 0);
 		assert(p_value != 0);
 
-		cbc_decode(i_value, o_value);
+		k128_init(&c, p_value);
+		cbc_decode(&c, i_value, o_value);
 	}
 	return EXIT_SUCCESS;
 }
