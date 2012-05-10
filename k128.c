@@ -283,27 +283,6 @@ k128_decode(w8 in[16], w8 out[16], w64 *skeys) {
 	LOG("plain = 0x%llx 0x%llx", A, B);
 }
 
-void
-cbc_crypt(w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
-	int i;
-
-	for (i = 0; i < BLOCKS_BYTE; i++) {
-		out[i] = expr[in[BLOCKS_BYTE - i - 1] ^ 0x2F];
-		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
-	}
-}
-
-void
-cbc_decrypt(w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
-	int i;
-
-	for (i = 0; i < BLOCKS_BYTE; i++) {
-		out[i] = in[BLOCKS_BYTE - i - 1];
-		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
-		out[i] = log[out[i]] ^ 0x2F;
-	}
-}
-
 inline static void
 xor_block (w8 a[BLOCKS_BYTE], w8 b[BLOCKS_BYTE], w8 result[BLOCKS_BYTE]) {
 	int i;
@@ -313,8 +292,51 @@ xor_block (w8 a[BLOCKS_BYTE], w8 b[BLOCKS_BYTE], w8 result[BLOCKS_BYTE]) {
 	}
 }
 
+static void
+k128_encode_cbc(CBC_Crypt *c, w8 in[16], w8 out[16]) {
+	int i;
+	assert(c != 0);
+
+	struct __K128_Crypt *k = (struct __K128_Crypt*) c;
+	k128_encode(in, out, k->__skeys);
+
+	/*for (i = 0; i < BLOCKS_BYTE; i++) {
+		out[i] = expr[in[BLOCKS_BYTE - i - 1] ^ 0x2F];
+		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
+	}*/
+
+}
+
+static void
+k128_decode_cbc(CBC_Crypt *c, w8 in[16], w8 out[16]) {
+	int i;
+	assert(c != 0);
+
+	struct __K128_Crypt *k = (struct __K128_Crypt*) c;
+	k128_decode(in, out, k->__skeys);
+
+	/*for (i = 0; i < BLOCKS_BYTE; i++) {
+		out[i] = in[BLOCKS_BYTE - i - 1];
+		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
+		out[i] = log[out[i]] ^ 0x2F;
+	}*/
+}
+
 void
-cbc_encode(char *filename, char *fileoutput) {
+k128_init(CBC_Crypt *c, char *mainkey) {
+	assert(c != 0);
+	assert(mainkey != 0);
+
+	struct __K128_Crypt *k = (struct __K128_Crypt*) c;
+
+	c->crypt = &k128_encode_cbc;
+	c->decrypt = &k128_decode_cbc;
+
+	generate_keys(mainkey, &k->__skeys);
+}
+
+void
+cbc_encode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
 	FILE *in;
 	FILE *out;
 
@@ -344,7 +366,7 @@ cbc_encode(char *filename, char *fileoutput) {
 
 		// O primeiro bloco deve conter o tamanho do arquivo
 		xor_block(buf, C, buf_out);
-		cbc_crypt(buf_out, buf);
+		cbc->crypt(cbc, buf_out, buf);
 		fwrite(buf, BLOCKS_BYTE, 1, out);
 		memcpy(C, buf, BLOCKS_BYTE);
 
@@ -364,7 +386,7 @@ cbc_encode(char *filename, char *fileoutput) {
 			LOG("P[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
 
 			xor_block(buf, C, buf_out);
-			cbc_crypt(buf_out, buf); // C' = crypt(P ^ C)
+			cbc->crypt(cbc, buf_out, buf); // C' = crypt(P ^ C)
 			fwrite(buf, BLOCKS_BYTE, 1, out);
 			memcpy(C, buf, BLOCKS_BYTE);
 
@@ -380,7 +402,7 @@ cbc_encode(char *filename, char *fileoutput) {
 }
 
 void
-cbc_decode(char *filename, char *fileoutput) {
+cbc_decode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
 	FILE *in;
 	FILE *out;
 
@@ -406,7 +428,7 @@ cbc_decode(char *filename, char *fileoutput) {
 
 		// o primeiro bloco contém o tamanho do arquivo
 		memcpy(C_new, buf, BLOCKS_BYTE);
-		cbc_decrypt(buf, buf_out);
+		cbc->decrypt(cbc, buf, buf_out);
 		xor_block(buf_out, C, buf);
 		save_size = to_uint64(buf, 0);
 		//xor_block(buf, C, C_new);
@@ -420,7 +442,7 @@ cbc_decode(char *filename, char *fileoutput) {
 			LOG("C[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
 
 			memcpy(C_new, buf, BLOCKS_BYTE);
-			cbc_decrypt(buf, buf_out); // decrypt(C')
+			cbc->decrypt(cbc, buf, buf_out); // decrypt(C')
 			LOG("D(C[%d]) = " WFRT " " WFRT, c, WORD(buf_out), WORD(buf_out + 8));
 			xor_block(buf_out, C, buf); // decrypt(C') ^ C
 			LOG("C = " WFRT " " WFRT, c, WORD(C), WORD(C + 8));
@@ -450,6 +472,11 @@ cbc_decode(char *filename, char *fileoutput) {
 	}
 }
 
+static inline void _test_cbc_generic(void) {
+	CBC_Crypt c;
+
+	k128_init(&c, "Exemplo01");
+}
 
 static inline void _test_generate_keys(void) {
 
@@ -551,5 +578,5 @@ void tests_functions(void) {
 	_test_generate_keys();
 	_test_convert();
 	_test_k128_encode();
-
+	_test_cbc_generic();
 }
