@@ -267,13 +267,33 @@ k128_decode(w8 in[16], w8 out[16], w64 *skeys) {
 }
 
 void
-cbc_crypt(w8 in[8], w8 out[8]) {
-	memcpy(out, in, 8);
+cbc_crypt(w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
+	int i;
+
+	for (i = 0; i < BLOCKS_BYTE; i++) {
+		out[i] = expr[in[BLOCKS_BYTE - i - 1] ^ 0x2F];
+		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
+	}
 }
 
 void
-cbc_decrypt(w8 in[8], w8 out[8]) {
-	memcpy(out, in, 8);
+cbc_decrypt(w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
+	int i;
+
+	for (i = 0; i < BLOCKS_BYTE; i++) {
+		out[i] = in[BLOCKS_BYTE - i - 1];
+		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
+		out[i] = log[out[i]] ^ 0x2F;
+	}
+}
+
+inline static void
+xor_block (w8 a[BLOCKS_BYTE], w8 b[BLOCKS_BYTE], w8 result[BLOCKS_BYTE]) {
+	int i;
+
+	for (i = 0; i < BLOCKS_BYTE; i++) {
+		result[i] = a[i] ^ b[i];
+	}
 }
 
 void
@@ -281,38 +301,60 @@ cbc_encode(char *filename, char *fileoutput) {
 	FILE *in;
 	FILE *out;
 
+	LOG("Criptografia");
+
 	in = fopen(filename, "rb+");
 	out = fopen(fileoutput, "wb+");
 
 	if (out == 0) {
 		fprintf(stderr, "Erro ao abrir %s para escrita\n", fileoutput);
 	} else if (in != 0) {
-		w8 buf[8], buf_out[8];
-		w64 P, C, arg;
+		w8 buf[BLOCKS_BYTE], buf_out[BLOCKS_BYTE], C[BLOCKS_BYTE];
 		size_t sz;
 		int i, ok;
+		w64 save_size;
+		int c = 1;
 
-		memset((void*) &C, 0xFF, 8);
+		memset((void*) &C, 0xFF, BLOCKS_BYTE);
+
+		fseek(in, 0, SEEK_END);
+		save_size = (w64) ftell(in);
+		fseek(in, 0, SEEK_SET);
+
+		uint64_to_bytes(save_size, 0, buf);
+
+		LOG("P[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
+
+		// O primeiro bloco deve conter o tamanho do arquivo
+		xor_block(buf, C, buf_out);
+		cbc_crypt(buf_out, buf);
+		fwrite(buf, BLOCKS_BYTE, 1, out);
+		memcpy(C, buf, BLOCKS_BYTE);
+
+		LOG("C[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
 
 		while (!feof(in)) {
-			memset(buf, 0xFF, 8);
+			c++;
+			memset(buf, 0xFF, BLOCKS_BYTE);
 			sz = 0;
 			ok = 1;
 
-			for (i = 0; (i < 8) && ok; i++) {
+			for (i = 0; (i < BLOCKS_BYTE) && ok; i++) {
 				ok = fread(buf+i, 1, 1, in);
 				sz += ok;
 			}
 
-			P = to_uint64(buf, 0);
-			arg = P ^ C;
-			uint64_to_bytes(arg, 0, buf);
-			cbc_crypt(buf, buf_out);
-			fwrite(buf_out, 8, 1, out);
-			C = to_uint64(buf_out, 0);
+			LOG("P[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
 
-			
+			xor_block(buf, C, buf_out);
+			cbc_crypt(buf_out, buf); // C' = crypt(P ^ C)
+			fwrite(buf, BLOCKS_BYTE, 1, out);
+			memcpy(C, buf, BLOCKS_BYTE);
+
+			LOG("C[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
+
 		}
+
 		fclose(in);
 		fclose(out);
 	} else {
@@ -325,33 +367,63 @@ cbc_decode(char *filename, char *fileoutput) {
 	FILE *in;
 	FILE *out;
 
+	LOG("Descriptografia");
+
 	in = fopen(filename, "rb+");
 	out = fopen(fileoutput, "wb+");
 
 	if (out == 0) {
 		fprintf(stderr, "Erro ao abrir %s para escrita\n", fileoutput);
 	} else if (in != 0) {
-		w8 buf[8], buf_out[8];
-		w64 P, C;
-		int i, sz, ok;
+		w8 buf[BLOCKS_BYTE], buf_out[BLOCKS_BYTE], C_new[BLOCKS_BYTE], C[BLOCKS_BYTE];
+		size_t sz;
+		int i, ok;
+		w64 save_size;
+		int c = 1;
 
-		memset((void*) &C, 0xFF, 8);
-		while (!feof(in)) {
-			memset(buf, 0xFF, 8);
-			sz = 0;
-			ok = 1;
+		memset((void*) &C, 0xFF, BLOCKS_BYTE);
 
-			for (i = 0; (i < 8) && ok; i++) {
-				ok = fread(buf+i, 1, 1, in);
-				sz += ok;
+		fread(buf, BLOCKS_BYTE, 1, in);
+
+		LOG("C[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
+
+		// o primeiro bloco contém o tamanho do arquivo
+		memcpy(C_new, buf, BLOCKS_BYTE);
+		cbc_decrypt(buf, buf_out);
+		xor_block(buf_out, C, buf);
+		save_size = to_uint64(buf, 0);
+		//xor_block(buf, C, C_new);
+		memcpy(C, C_new, BLOCKS_BYTE);
+		
+		LOG("P[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
+
+		i = 0;
+		while (fread(buf, BLOCKS_BYTE, 1, in) != 0) { // = C'
+			c++;
+			LOG("C[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
+
+			memcpy(C_new, buf, BLOCKS_BYTE);
+			cbc_decrypt(buf, buf_out); // decrypt(C')
+			LOG("D(C[%d]) = " WFRT " " WFRT, c, WORD(buf_out), WORD(buf_out + 8));
+			xor_block(buf_out, C, buf); // decrypt(C') ^ C
+			LOG("C = " WFRT " " WFRT, c, WORD(C), WORD(C + 8));
+			LOG("D(C[%d]) ^ C = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
+			if ((i + BLOCKS_BYTE) > save_size) {
+				fwrite(buf, save_size % BLOCKS_BYTE, 1, out);
+			} else {
+				i += BLOCKS_BYTE;
+				fwrite(buf, BLOCKS_BYTE, 1, out); // P = decrypt(C') ^ C
 			}
+			//xor_block(buf, C, C_new);
+			memcpy(C, C_new, BLOCKS_BYTE);
+			LOG("P[%d] = " WFRT " " WFRT, c, WORD(buf), WORD(buf + 8));
 
-			cbc_decrypt(buf, buf_out);
+			/*cbc_decrypt(buf, buf_out);
 			P = to_uint64(buf_out, 0) ^ C;
 			uint64_to_bytes(P, 0, buf_out);
 			fwrite(buf_out, 8, 1, out);
 
-			C = P ^ C;	
+			C = P ^ C;*/
 
 		}
 		fclose(in);
