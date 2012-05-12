@@ -300,11 +300,6 @@ k128_encode_cbc(CBC_Crypt *c, w8 in[16], w8 out[16]) {
 	struct __K128_Crypt *k = (struct __K128_Crypt*) c;
 	k128_encode(in, out, k->__skeys);
 
-	/*for (i = 0; i < BLOCKS_BYTE; i++) {
-		out[i] = expr[in[BLOCKS_BYTE - i - 1] ^ 0x2F];
-		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
-	}*/
-
 }
 
 static void
@@ -314,12 +309,6 @@ k128_decode_cbc(CBC_Crypt *c, w8 in[16], w8 out[16]) {
 
 	struct __K128_Crypt *k = (struct __K128_Crypt*) c;
 	k128_decode(in, out, k->__skeys);
-
-	/*for (i = 0; i < BLOCKS_BYTE; i++) {
-		out[i] = in[BLOCKS_BYTE - i - 1];
-		out[i] = ((out[i] >> 4) & 0xFF) + ((out[i] & 0xFF) << 4);
-		out[i] = log[out[i]] ^ 0x2F;
-	}*/
 }
 
 void
@@ -354,7 +343,7 @@ cbc_encode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
 		w64 save_size;
 		int c = 1;
 
-		memset((void*) &C, 0xFF, BLOCKS_BYTE);
+		memset(C, 0xFF, BLOCKS_BYTE);
 
 		fseek(in, 0, SEEK_END);
 		save_size = (w64) ftell(in);
@@ -420,7 +409,7 @@ cbc_decode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
 		w64 save_size;
 		int c = 1;
 
-		memset((void*) &C, 0xFF, BLOCKS_BYTE);
+		memset(C, 0xFF, BLOCKS_BYTE);
 
 		fread(buf, BLOCKS_BYTE, 1, in);
 
@@ -470,6 +459,115 @@ cbc_decode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
 	} else {
 		fprintf(stderr, "Erro ao abrir o arquivo %s\n", filename);
 	}
+}
+
+void
+cbc_encode_array(CBC_Crypt *c, int num_blocks, w8* VetEntra, w8* VetEntraC) {
+		int i;
+		w8 *C, *buf;
+
+		C = (w8*) malloc(BLOCKS_BYTE);
+		buf = (w8*) malloc(BLOCKS_BYTE);
+
+		assert(C != 0);
+		assert(buf != 0);
+
+		memset(C, 0xFF, BLOCKS_BYTE);
+
+		for (i = 0; i < (num_blocks * BLOCKS_BYTE); i += BLOCKS_BYTE) {
+			xor_block(VetEntra + i, C, buf);
+			c->crypt(c, buf, VetEntraC + i);
+			memcpy(C, VetEntraC + i, BLOCKS_BYTE);
+
+			printf("VetEntra = " WFRT " " WFRT "\n", WORD(VetEntra + i), WORD(VetEntra + i + 8));
+			printf("VetEntraC = " WFRT " " WFRT "\n", WORD(VetEntraC + i), WORD(VetEntraC + i + 8));
+		}
+
+		printf("\n\n");
+
+		free(C);
+		free(buf);
+}
+
+void
+cbc_decode_array(CBC_Crypt *c, int num_blocks, w8* VetEntraC, w8* VetEntra) {
+		int i;
+		w8 *C, *buf;
+
+		C = (w8*) malloc(BLOCKS_BYTE);
+		buf = (w8*) malloc(BLOCKS_BYTE);
+
+		assert(C != 0);
+		assert(buf != 0);
+
+		memset(C, 0xFF, BLOCKS_BYTE);
+
+		for (i = 0; i < (num_blocks * BLOCKS_BYTE); i += BLOCKS_BYTE) {
+			c->decrypt(c, VetEntraC + i, buf);
+			xor_block(buf, C, VetEntra + i);
+			memcpy(C, VetEntraC + i, BLOCKS_BYTE);
+
+			printf("VetEntraC = " WFRT " " WFRT "\n", WORD(VetEntraC + i), WORD(VetEntraC + i + 8));
+			printf("VetEntra = " WFRT " " WFRT "\n", WORD(VetEntra + i), WORD(VetEntra + i + 8));
+		}
+
+		printf("\n\n");
+
+		free(C);
+		free(buf);
+}
+
+void
+randomness_k128_mode_1(char *filename, char *password) {
+	FILE *file;
+	w8* VetEntra, *VetEntraC;
+	CBC_Crypt c;
+	int ok = 1, num_blocks = 8, i;
+
+	VetEntra = (w8*) malloc(num_blocks * BLOCKS_BYTE);
+	VetEntraC = (w8*) malloc(num_blocks * BLOCKS_BYTE);
+	
+	assert(VetEntra != 0);
+	assert(VetEntraC != 0);
+
+	file = fopen(filename, "rb+");
+
+	if (file == 0) {
+		fprintf(stderr, "Erro ao abrir o arquivo %s\n");
+	} else {
+
+		ok = fread(VetEntra, BLOCKS_BYTE, num_blocks, file);	
+		fclose(file);
+
+		if (!ok) {
+			fprintf(stderr, "O arquivo possui não mais que %d bits", BLOCKS_BYTE * num_blocks);
+		}
+	
+		k128_init(&c, password);
+
+		cbc_encode_array(&c, num_blocks, VetEntra, VetEntraC);
+		cbc_decode_array(&c, num_blocks, VetEntraC, VetEntra);
+
+		/*for (j = 0; j < (num_blocks * BLOCKS_BYTE * 8); j++) {
+			byte = j / 8;
+			block = byte / BLOCKS_BYTE;
+			byte_block = byte % BLOCKS_BYTE;
+			bit_block = j - (BLOCKS_BYTE*block*8 + byte_block*8);
+
+			printf("%d %d %d\n", block, byte_block, bit_block);
+
+			memcpy(VetAlter, VetEntra, num_blocks * BLOCKS_BYTE);
+
+			VetAlter[block][byte_block] = VetEntra[block][byte_block] & (~(1 << bit_block));
+
+			//k128_encode(VetEntra[block], VetEntraC[block], skeys);
+			//k128_encode(VetAlter[block], VetAlterC[block], skeys);
+		}*/
+
+	}
+
+	free(VetEntra);
+	free(VetEntraC);
 }
 
 static inline void _test_cbc_generic(void) {
@@ -563,14 +661,35 @@ _test_convert() {
 }
 
 _test_k128_encode() {
-	w64 *keys;
-	char *sec = "Exemplo01";
-	w8 in[16] = {44,226,147,190,69,21,122,111,174,133,120,23,123,142,31,24}, out[16];
 
-	generate_keys(sec, &keys);
 
-	k128_encode(in, out, keys);
-	k128_decode(out, in, keys);
+	{
+		w64 *keys;
+		char *sec = "Exemplo01";
+		w8 in[16] = {44,226,147,190,69,21,122,111,174,133,120,23,123,142,31,24}, out[16], out1[16];
+
+		generate_keys(sec, &keys);
+	
+		k128_encode(in, out, keys);
+		k128_decode(out, out1, keys);
+
+		assert(memcmp(in, out1, 16) == 0);
+
+	}
+
+
+	{
+		w64 *keys;
+		char *sec = "Exemplo01";
+		w8 in[16] = {31,32,33,34,35,36,37,38,31,32,33,34,35,36,37,38}, out[16], out1[16];
+
+		generate_keys(sec, &keys);
+	
+		k128_encode(in, out, keys);
+		k128_decode(out, out1, keys);
+
+		assert(memcmp(in, out1, 16) == 0);
+	}
 }
 
 void tests_functions(void) {

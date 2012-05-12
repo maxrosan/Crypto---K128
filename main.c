@@ -71,6 +71,11 @@ int main(int argc, char **argv) {
 
 		k128_init(&c, p_value);
 		cbc_decode(&c, i_value, o_value);
+	} else if (comm == MODE_2) {
+		assert(p_value != 0);
+		assert(i_value != 0);
+
+		randomness_k128_mode_1(i_value, p_value);
 	}
 	return EXIT_SUCCESS;
 }
