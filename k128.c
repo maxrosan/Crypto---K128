@@ -10,7 +10,8 @@ static w8 expr[256] = {1 , 45 , 226 , 147 , 190 , 69 , 21 , 174 , 120 , 3 , 135 
  
 static w8 log[256] = {128 , 0 , 176 , 9 , 96 , 239 , 185 , 253 , 16 , 18 , 159 , 228 , 105 , 186 , 173 , 248 , 192 , 56 , 194 , 101 , 79 , 6 , 148 , 252 , 25 , 222 , 106 , 27 , 93 , 78 , 168 , 130 , 112 , 237 , 232 , 236 , 114 , 179 , 21 , 195 , 255 , 171 , 182 , 71 , 68 , 1 , 172 , 37 , 201 , 250 , 142 , 65 , 26 , 33 , 203 , 211 , 13 , 110 , 254 , 38 , 88 , 218 , 50 , 15 , 32 , 169 , 157 , 132 , 152 , 5 , 156 , 187 , 34 , 140 , 99 , 231 , 197 , 225 , 115 , 198 , 175 , 36 , 91 , 135 , 102 , 39 , 247 , 87 , 244 , 150 , 177 , 183 , 92 , 139 , 213 , 84 , 121 , 223 , 170 , 246 , 62 , 163 , 241 , 17 , 202 , 245 , 209 , 23 , 123 , 147 , 131 , 188 , 189 , 82 , 30 , 235 , 174 , 204 , 214 , 53 , 8 , 200 , 138 , 180 , 226 , 205 , 191 , 217 , 208 , 80 , 89 , 63 , 77 , 98 , 52 , 10 , 72 , 136 , 181 , 86 , 76 , 46 , 107 , 158 , 210 , 61 , 60 , 3 , 19 , 251 , 151 , 81 , 117 , 74 , 145 , 113 , 35 , 190 , 118 , 42 , 95 , 249 , 212 , 85 , 11 , 220 , 55 , 49 , 22 , 116 , 215 , 119 , 167 , 230 , 7 , 219 , 164 , 47 , 70 , 243 , 97 , 69 , 103 , 227 , 12 , 162 , 59 , 28 , 133 , 24 , 4 , 29 , 41 , 160 , 143 , 178 , 90 , 216 , 166 , 126 , 238 , 141 , 83 , 75 , 161 , 154 , 193 , 14 , 122 , 73 , 165 , 44 , 129 , 196 , 199 , 54 , 43 , 127 , 67 , 149 , 51 , 242 , 108 , 104 , 109 , 240 , 2 , 40 , 206 , 221 , 155 , 234 , 94 , 153 , 124 , 20 , 134 , 207 , 229 , 66 , 184 , 64 , 120 , 45 , 58 , 233 , 100 , 31 , 146 , 144 , 125 , 57 , 111 , 224 , 137 , 48};
  
-static inline w64 to_uint64(w8* buffer, int n) {
+static inline 
+w64 to_uint64(w8* buffer, int n) {
 	return (
 	(w64)buffer[n] << 56 | (w64)buffer[n+1] << 48 | 
 	(w64)buffer[n+2] << 40  | (w64)buffer[n+3] << 32 | 
@@ -18,7 +19,8 @@ static inline w64 to_uint64(w8* buffer, int n) {
 	(w64)buffer[n+6] << 8  | (w64)buffer[n+7]);
 }
 
-static inline void uint64_to_bytes(w64 in, int n, w8* out) {
+static inline void 
+uint64_to_bytes(w64 in, int n, w8* out) {
 	int i;
 
 	for (i = 7; i >= 0; i--) {
@@ -27,7 +29,7 @@ static inline void uint64_to_bytes(w64 in, int n, w8* out) {
 	}
 }
 
-w64
+static inline w64
 shift_circ_left(w64 a, int b) {
 	b = b % 64;
 	if (b == 0)
@@ -35,7 +37,8 @@ shift_circ_left(w64 a, int b) {
 	return (a << b) | (a >> (64 - b));
 }
 
-w64 point(w64 b, w64 c) { // A = B . C
+static inline w64
+point(w64 b, w64 c) { // A = B . C
 	w8 a_bytes[8];
 	w8 b_bytes[8];
 	w8 c_bytes[8];
@@ -51,7 +54,8 @@ w64 point(w64 b, w64 c) { // A = B . C
 	return to_uint64(a_bytes, 0);
 }
 
-w64 point_inverse_left(w64 a, w64 c) { // A = B . C => B = A . C
+static inline w64
+point_inverse_left(w64 a, w64 c) { // A = B . C => B = A . C
 	w8 a_bytes[8];
 	w8 b_bytes[8];
 	w8 c_bytes[8];
@@ -133,7 +137,7 @@ generate_keys(char *key, w64** k) {
 	//free(L);
 }
 
-void
+static inline void
 encode_first_iteration(w64 Xa, w64 Xb, w64 *skeys, w8 it, w64 *X_new_a, w64 *X_new_b) {
 
 	assert(X_new_a != 0);
@@ -147,7 +151,7 @@ encode_first_iteration(w64 Xa, w64 Xb, w64 *skeys, w8 it, w64 *X_new_a, w64 *X_n
 	*X_new_b = Xb + Kb;
 }
 
-void
+static inline void
 encode_first_iteration_inverse(w64 Xa, w64 Xb, w64 *skeys, w8 it, w64 *X_new_a, w64 *X_new_b) {
 
 	assert(X_new_a != 0);
@@ -162,7 +166,7 @@ encode_first_iteration_inverse(w64 Xa, w64 Xb, w64 *skeys, w8 it, w64 *X_new_a, 
 }
 
 
-void
+static inline void
 encode_second_iteration(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_new_f) {
 
 	assert(X_new_e != 0);
@@ -182,7 +186,7 @@ encode_second_iteration(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_
 	*X_new_f = Z ^ Xf;
 }
 
-void
+static inline void
 encode_second_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e, w64 *X_new_f) {
 
 	assert(X_new_e != 0);
@@ -192,7 +196,7 @@ encode_second_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w8 it, w64 *X_new_e,
 	encode_second_iteration(Xe, Xf, skeys, it, X_new_e, X_new_f);
 }
 
-void
+static inline void
 encode_last_iteration(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X_f_final) {
 
 	assert(X_e_final != 0);
@@ -203,7 +207,7 @@ encode_last_iteration(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X_f_final
 	*X_f_final = Xe + skeys[(NSUBKEYS << 2) + 2];
 }
 
-void
+static inline void
 encode_last_iteration_inverse(w64 Xe, w64 Xf, w64 *skeys, w64 *X_e_final, w64 *X_f_final) {
 
 	assert(X_e_final != 0);
@@ -479,11 +483,11 @@ cbc_encode_array(CBC_Crypt *c, int num_blocks, w8* VetEntra, w8* VetEntraC) {
 			c->crypt(c, buf, VetEntraC + i);
 			memcpy(C, VetEntraC + i, BLOCKS_BYTE);
 
-			printf("VetEntra = " WFRT " " WFRT "\n", WORD(VetEntra + i), WORD(VetEntra + i + 8));
-			printf("VetEntraC = " WFRT " " WFRT "\n", WORD(VetEntraC + i), WORD(VetEntraC + i + 8));
+			//printf("VetEntra = " WFRT " " WFRT "\n", WORD(VetEntra + i), WORD(VetEntra + i + 8));
+			//printf("VetEntraC = " WFRT " " WFRT "\n", WORD(VetEntraC + i), WORD(VetEntraC + i + 8));
 		}
 
-		printf("\n\n");
+		//printf("\n\n");
 
 		free(C);
 		free(buf);
@@ -517,18 +521,39 @@ cbc_decode_array(CBC_Crypt *c, int num_blocks, w8* VetEntraC, w8* VetEntra) {
 		free(buf);
 }
 
+static inline int
+hamming_distance(w8 *x, w8 *y, size_t size) {
+	int i, res;
+	w8 z;
+
+	res = 0;
+
+	for (i = 0; i < size; i++) {
+		z = x[i] ^ y[i];
+		res += __builtin_popcount(z);
+	}
+
+	return res;
+}
+
 void
 randomness_k128_mode_1(char *filename, char *password) {
 	FILE *file;
-	w8* VetEntra, *VetEntraC;
+	w8* VetEntra, *VetEntraC, *VetAlter, *VetAlterC;
 	CBC_Crypt c;
-	int ok = 1, num_blocks = 8, i;
+	int ok = 1, num_blocks = 8, j, byte, block, byte_block, bit_block;
+	int H_max[8], H_min[8], H_mean[8], i, tmp;
+	w8 bits;
 
 	VetEntra = (w8*) malloc(num_blocks * BLOCKS_BYTE);
-	VetEntraC = (w8*) malloc(num_blocks * BLOCKS_BYTE);
-	
+	VetEntraC = (w8*) malloc(num_blocks * BLOCKS_BYTE);	
+	VetAlter = (w8*) malloc(num_blocks * BLOCKS_BYTE);
+	VetAlterC = (w8*) malloc(num_blocks * BLOCKS_BYTE);
+
 	assert(VetEntra != 0);
 	assert(VetEntraC != 0);
+	assert(VetAlter != 0);
+	assert(VetAlterC != 0);
 
 	file = fopen(filename, "rb+");
 
@@ -546,28 +571,51 @@ randomness_k128_mode_1(char *filename, char *password) {
 		k128_init(&c, password);
 
 		cbc_encode_array(&c, num_blocks, VetEntra, VetEntraC);
-		cbc_decode_array(&c, num_blocks, VetEntraC, VetEntra);
 
-		/*for (j = 0; j < (num_blocks * BLOCKS_BYTE * 8); j++) {
+		for (j = 0; j < 8; j++) {
+			H_max[j] = 0;
+			H_min[j] = 1000;
+			H_mean[j] = 0;
+		}
+
+		for (j = 0; j < BLOCKS_BYTE * num_blocks * 8; j++) {
 			byte = j / 8;
 			block = byte / BLOCKS_BYTE;
 			byte_block = byte % BLOCKS_BYTE;
 			bit_block = j - (BLOCKS_BYTE*block*8 + byte_block*8);
 
-			printf("%d %d %d\n", block, byte_block, bit_block);
-
 			memcpy(VetAlter, VetEntra, num_blocks * BLOCKS_BYTE);
 
-			VetAlter[block][byte_block] = VetEntra[block][byte_block] & (~(1 << bit_block));
+			*(VetAlter + (block * BLOCKS_BYTE) + byte_block) =
+			 *(VetEntra + (block * BLOCKS_BYTE) + byte_block) ^ ((w8) (1 << bit_block));
 
-			//k128_encode(VetEntra[block], VetEntraC[block], skeys);
-			//k128_encode(VetAlter[block], VetAlterC[block], skeys);
-		}*/
+			cbc_encode_array(&c, num_blocks, VetAlter, VetAlterC);
+			
+			for (i = block; i < num_blocks; i++) {
+				tmp = hamming_distance((VetEntraC + (i * BLOCKS_BYTE)),
+				 (VetAlterC + (i * BLOCKS_BYTE)), BLOCKS_BYTE);
+
+				H_max[i] = (tmp > H_max[i]) ? tmp : H_max[i];
+				H_min[i] = (tmp < H_min[i]) ? tmp : H_min[i];
+				H_mean[i] += tmp;
+			}
+		}
+
+		printf(" i | H máx. | H min. | H média \n");
+		printf("-------------------------------\n");
+
+		for (j = 0; j < 8; j++) {
+			printf(" %d | %6d | %6d | %3d \n", j, H_max[j], H_min[j], H_mean[j] / ((j + 1) * BLOCKS_BYTE * 8));
+			printf("-------------------------------\n");
+		}
+
 
 	}
 
 	free(VetEntra);
 	free(VetEntraC);
+	free(VetAlter);
+	free(VetAlterC);
 }
 
 static inline void _test_cbc_generic(void) {

@@ -1,9 +1,9 @@
 
 all: k128.o main.o
-	gcc -ggdb $^ -o main
+	gcc -O3 $^ -o main
 
 %.o: %.c
-	gcc -ggdb -c $^
+	gcc -O3 -c $^
 
 clean: 
 	rm *.o main
