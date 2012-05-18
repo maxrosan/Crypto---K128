@@ -536,12 +536,20 @@ hamming_distance(w8 *x, w8 *y, size_t size) {
 	return res;
 }
 
+/*!
+ * \brief Calcula a aleatoriedade do k128 de acordo com o parâmetro 'mode'
+ * \param filename: Arquivo que fornecerá os 1024 bits para teste
+ * \param password: Palavra-chave utilizada no teste
+ * \param mode: Modo para medir aleatoriedade. Se mode = 1, altera somente os j-ésimo bit; caso mode = 2, então altera j-ésimo e o (j+8)-ésimo bits
+ * \return void
+*/
 void
-randomness_k128_mode_1(char *filename, char *password) {
+randomness_k128_mode(char *filename, char *password, int mode) {
 	FILE *file;
 	w8* VetEntra, *VetEntraC, *VetAlter, *VetAlterC;
 	CBC_Crypt c;
-	int ok = 1, num_blocks = 8, j, byte, block, byte_block, bit_block;
+	int ok = 1, num_blocks = 8, j, byte, block, byte_block, bit_block,
+	 j1, byte1, byte_block1, bit_block1, block1, limit;
 	int H_max[8], H_min[8], H_mean[8], i, tmp;
 	w8 bits;
 
@@ -554,6 +562,7 @@ randomness_k128_mode_1(char *filename, char *password) {
 	assert(VetEntraC != 0);
 	assert(VetAlter != 0);
 	assert(VetAlterC != 0);
+	assert(mode >= 1 && mode <= 2);
 
 	file = fopen(filename, "rb+");
 
@@ -566,6 +575,7 @@ randomness_k128_mode_1(char *filename, char *password) {
 
 		if (!ok) {
 			fprintf(stderr, "O arquivo possui não mais que %d bits", BLOCKS_BYTE * num_blocks);
+			return;
 		}
 	
 		k128_init(&c, password);
@@ -578,7 +588,9 @@ randomness_k128_mode_1(char *filename, char *password) {
 			H_mean[j] = 0;
 		}
 
-		for (j = 0; j < BLOCKS_BYTE * num_blocks * 8; j++) {
+		limit = (BLOCKS_BYTE * num_blocks * 8 - (8 * (mode == 2)));
+
+		for (j = 0; j < limit; j++) {
 			byte = j / 8;
 			block = byte / BLOCKS_BYTE;
 			byte_block = byte % BLOCKS_BYTE;
@@ -587,7 +599,18 @@ randomness_k128_mode_1(char *filename, char *password) {
 			memcpy(VetAlter, VetEntra, num_blocks * BLOCKS_BYTE);
 
 			*(VetAlter + (block * BLOCKS_BYTE) + byte_block) =
-			 *(VetEntra + (block * BLOCKS_BYTE) + byte_block) ^ ((w8) (1 << bit_block));
+				*(VetEntra + (block * BLOCKS_BYTE) + byte_block) ^ ((w8) (1 << bit_block));
+
+			if (mode == 2) {
+				j1 = j + 8;
+				byte1 = j1 / 8;
+				block1 = byte1 / BLOCKS_BYTE;
+				byte_block1 = byte1 % BLOCKS_BYTE;
+				bit_block1 = j1 - (BLOCKS_BYTE*block1*8 + byte_block1*8);
+
+				*(VetAlter + (block1 * BLOCKS_BYTE) + byte_block1) =
+				 (*(VetAlter + (block1 * BLOCKS_BYTE) + byte_block1)) ^ ((w8) (1 << bit_block1));
+			}
 
 			cbc_encode_array(&c, num_blocks, VetAlter, VetAlterC);
 			

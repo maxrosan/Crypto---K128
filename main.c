@@ -75,7 +75,12 @@ int main(int argc, char **argv) {
 		assert(p_value != 0);
 		assert(i_value != 0);
 
-		randomness_k128_mode_1(i_value, p_value);
+		randomness_k128_mode(i_value, p_value, 1);
+	} else if (comm == MODE_3) {
+		assert(p_value != 0);
+		assert(i_value != 0);
+
+		randomness_k128_mode(i_value, p_value, 2);
 	}
 	return EXIT_SUCCESS;
 }

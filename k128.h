@@ -32,4 +32,5 @@ void tests_functions(void);
 void k128_init(CBC_Crypt *c, char *mainkey);
 void cbc_encode(CBC_Crypt *c, char *filename, char *fileoutput);
 void cbc_decode(CBC_Crypt *c, char *filename, char *fileoutput);
+void randomness_k128_mode(char *filename, char *password, int mode);
 #endif
