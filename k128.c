@@ -736,6 +736,8 @@ randomness_k128_mode(char *filename, char *password, int mode) {
 	free(VetAlterC);
 }
 
+#if ENABLE_TESTS
+
 static void
 _test_cbc_generic(void) {
 	CBC_Crypt c;
@@ -867,3 +869,5 @@ void tests_functions(void) {
 	_test_k128_encode();
 	_test_cbc_generic();
 }
+
+#endif

@@ -70,9 +70,11 @@ int main(int argc, char **argv) {
 				p_value = (char*) malloc(strlen(optarg) + 1);
 				strcpy(p_value, optarg);
 				break;
+#if ENABLE_TESTS
 			case 't':
 				tests_functions();
 				break;
+#endif
 			case 'a':
 				whitespace_file = 1;
 				break;

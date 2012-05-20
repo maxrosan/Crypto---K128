@@ -2,7 +2,9 @@
 #ifndef K128H
 #define K128H
 
-#define w64 unsigned long long int
+#include <stdint.h>
+
+#define w64 uint64_t
 #define w32 unsigned int
 #define w8 unsigned char
 
@@ -10,6 +12,7 @@
 #define ROUNDS 12
 #define NSUBKEYS (4*ROUNDS + 2)
 #define DEBUG 0
+#define ENABLE_TESTS 0
 #define BLOCKS_BYTE 16
 
 #define LOG(MSG,...) if(DEBUG) printf(MSG "\n", ##__VA_ARGS__)
