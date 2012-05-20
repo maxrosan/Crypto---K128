@@ -609,6 +609,20 @@ cbc_decode_array(CBC_Crypt *c, int num_blocks, w8* VetEntraC, w8* VetEntra) {
 		free(buf);
 }
 
+static int
+__hamming_dist_w8(w8 x, w8 y) {
+	int res = 0;
+
+	w8 val = x ^ y;
+
+	while (val) {
+		res++;
+		val &= (val - 1);
+	}
+
+	return res;
+}
+
 /*!
  * \brief Calcula a distância de Hamming
  * \param x : Array de bytes
@@ -619,13 +633,11 @@ cbc_decode_array(CBC_Crypt *c, int num_blocks, w8* VetEntraC, w8* VetEntra) {
 static int
 hamming_distance(w8 *x, w8 *y, size_t size) {
 	int i, res;
-	w8 z;
 
 	res = 0;
 
 	for (i = 0; i < size; i++) {
-		z = x[i] ^ y[i];
-		res += __builtin_popcount(z);
+		res += __hamming_dist_w8(x[i], y[i]);
 	}
 
 	return res;
