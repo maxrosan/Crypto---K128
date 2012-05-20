@@ -662,7 +662,7 @@ randomness_k128_mode(char *filename, char *password, int mode) {
 	file = fopen(filename, "rb+");
 
 	if (file == 0) {
-		fprintf(stderr, "Erro ao abrir o arquivo %s\n");
+		fprintf(stderr, "Erro ao abrir o arquivo %s\n", filename);
 	} else {
 
 		ok = fread(VetEntra, BLOCKS_BYTE, num_blocks, file);	
