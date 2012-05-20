@@ -11,8 +11,8 @@
 
 enum { ENCODE, DECODE, MODE_2, MODE_3 };
 
-//! Apaga arquivo
-inline static void 
+/*! Apaga arquivo */
+static void 
 _removeFile(char *filename) {
 	FILE *fp;
 
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	//tests_functions();
+	/* tests_functions(); */
 	
 	if (p_value != 0) {
 		if (strlen(p_value) < 8) {
