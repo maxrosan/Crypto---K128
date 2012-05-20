@@ -11,6 +11,32 @@
 
 enum { ENCODE, DECODE, MODE_2, MODE_3 };
 
+//! Apaga arquivo
+inline static void 
+_removeFile(char *filename) {
+	FILE *fp;
+
+	assert(filename != 0);
+	
+	fp = fopen(filename, "rb+");
+	if (fp != 0) {
+		long size;
+		fseek(fp, 0L, SEEK_END);
+		size = ftell(fp);
+		fseek(fp, 0L, SEEK_SET);
+
+		while (size--) {
+			fwrite("\0", 1, 1, fp);
+		}
+
+		fclose(fp);
+
+		unlink(filename);
+	} else {
+		fprintf(stderr, "Arquivo a ser removido não existe\n");
+	}
+}
+
 int main(int argc, char **argv) {
 	
 	char *i_value = 0, *o_value = 0, *p_value = 0;
@@ -91,6 +117,12 @@ int main(int argc, char **argv) {
 
 		k128_init(&c, p_value);
 		cbc_encode(&c, i_value, o_value);
+
+		if (whitespace_file) {
+			printf("Arquivo %s excluído\n", i_value);
+			_removeFile(i_value);
+		}
+
 	} else if (comm == DECODE) {
 		CBC_Crypt c;
 
