@@ -7,6 +7,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "aes.h"
 #include "k128.h"
 
 enum { ENCODE, DECODE, MODE_2, MODE_3 };
@@ -39,12 +40,12 @@ _removeFile(char *filename) {
 
 int main(int argc, char **argv) {
 	
-	char *i_value = 0, *o_value = 0, *p_value = 0;
+	char *i_value = 0, *o_value = 0, *p_value = 0, *algorithm_name_value;
 	int comm;
 	int c;
 	int whitespace_file = 0;
 
-	while ((c = getopt(argc, argv, "acdi:o:p:12t")) != -1) {
+	while ((c = getopt(argc, argv, "acdi:o:p:12tf:")) != -1) {
 		switch (c) {
 			case 'c':
 				comm = ENCODE;
@@ -78,12 +79,23 @@ int main(int argc, char **argv) {
 			case 'a':
 				whitespace_file = 1;
 				break;
+			case 'f':
+				algorithm_name_value = (char*) malloc(strlen(optarg) + 1);
+				strcpy(algorithm_name_value, optarg);
+				break;
 			default:
 				fprintf(stderr, "Argumento desconhecido!\n");
 		}
 	}
 
 	/* tests_functions(); */
+
+	if (algorithm_name_value == NULL || strcmp(algorithm_name_value, "aes") && strcmp(algorithm_name_value, "k128")) {
+
+		fprintf(stderr, "Um algoritmo deve ser escolhido: K128, AES-NI\n");
+		return EXIT_FAILURE;
+
+	}
 	
 	if (p_value != 0) {
 		if (strlen(p_value) < 8) {
@@ -117,7 +129,12 @@ int main(int argc, char **argv) {
 		assert(o_value != 0);
 		assert(p_value != 0);
 
-		k128_init(&c, p_value);
+		if (strcmp("k128", algorithm_name_value) == 0) {
+			k128_init(&c, p_value);
+		} else if (strcmp("aes", algorithm_name_value) == 0) {
+			aes_init_values(&c, p_value);
+		}
+
 		cbc_encode(&c, i_value, o_value);
 
 		if (whitespace_file) {
@@ -132,8 +149,14 @@ int main(int argc, char **argv) {
 		assert(o_value != 0);
 		assert(p_value != 0);
 
-		k128_init(&c, p_value);
+		if (strcmp("k128", algorithm_name_value) == 0) {
+			k128_init(&c, p_value);
+		} else if (strcmp("aes", algorithm_name_value) == 0) {
+			aes_init_values(&c, p_value);
+		}
+
 		cbc_decode(&c, i_value, o_value);
+
 	} else if (comm == MODE_2) {
 		assert(p_value != 0);
 		assert(i_value != 0);
