@@ -123,39 +123,48 @@ int main(int argc, char **argv) {
 	}
 	
 	if (comm == ENCODE) {
-		CBC_Crypt c;
+
+		CBC_Crypt *c;
 
 		assert(i_value != 0);
 		assert(o_value != 0);
 		assert(p_value != 0);
 
 		if (strcmp("k128", algorithm_name_value) == 0) {
-			k128_init(&c, p_value);
+			c = (CBC_Crypt*) malloc(sizeof(K128_Crypt));
+			k128_init(c, p_value);
 		} else if (strcmp("aes", algorithm_name_value) == 0) {
-			aes_init_values(&c, p_value);
+			c = (CBC_Crypt*) malloc(sizeof(CBC_Crypt));
+			aes_init_values(c, p_value);
 		}
 
-		cbc_encode(&c, i_value, o_value);
+		cbc_encode(c, i_value, o_value);
 
 		if (whitespace_file) {
 			printf("Arquivo %s excluído\n", i_value);
 			_removeFile(i_value);
 		}
 
+		free(c);
+
 	} else if (comm == DECODE) {
-		CBC_Crypt c;
+		CBC_Crypt *c;
 
 		assert(i_value != 0);
 		assert(o_value != 0);
 		assert(p_value != 0);
 
 		if (strcmp("k128", algorithm_name_value) == 0) {
-			k128_init(&c, p_value);
+			c = (CBC_Crypt*) malloc(sizeof(K128_Crypt));
+			k128_init(c, p_value);
 		} else if (strcmp("aes", algorithm_name_value) == 0) {
-			aes_init_values(&c, p_value);
+			c = (CBC_Crypt*) malloc(sizeof(CBC_Crypt));
+			aes_init_values(c, p_value);
 		}
 
-		cbc_decode(&c, i_value, o_value);
+		cbc_decode(c, i_value, o_value);
+
+		free(c);
 
 	} else if (comm == MODE_2) {
 		assert(p_value != 0);

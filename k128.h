@@ -4,10 +4,10 @@
 
 #include "cbc.h"
 
-struct __K128_Crypt {
+typedef struct __K128_Crypt {
 	CBC_Crypt cbc;
 	w64  *__skeys;
-};
+} K128_Crypt;
 
 void generate_keys(char *key, w64** k);
 void tests_functions(void);
