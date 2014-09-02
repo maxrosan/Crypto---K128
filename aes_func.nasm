@@ -8,13 +8,6 @@ section .text
 	global aesinit
 	global aesencrypt
 	global aesdecrypt
-	global getkey
-
-; void getkey(char *key)
-getkey:
-	movdqu xmm0, [key]
-	movdqu [rdi], xmm0
-	ret
 
 ; void aesinit(char *key)
 aesinit:
