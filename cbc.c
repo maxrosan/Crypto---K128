@@ -40,11 +40,22 @@ w64 to_uint64(w8* buffer, int n) {
 */
 static void
 xor_block (w8 a[BLOCKS_BYTE], w8 b[BLOCKS_BYTE], w8 result[BLOCKS_BYTE]) {
+
+#if (BLOCKS_BYTE == 16)
+
+	w128_xor_block(a, b, result);
+
+#else
+
+
 	int i;
 
 	for (i = 0; i < BLOCKS_BYTE; i++) {
 		result[i] = a[i] ^ b[i];
 	}
+
+#endif
+
 }
 
 /*!

@@ -91,6 +91,14 @@ calc_again:
 
 	mpz_clear(p);
 	mpz_clear(q);
+	mpz_clear(n);
+	mpz_clear(phi_n);
+	mpz_clear(a);
+	mpz_clear(b);
+	mpz_clear(e);
+	mpz_clear(d);
+	mpz_clear(one);
+	mpz_clear(m);
 }
 
 void rsa_init_values(RSA_Crypt *c, char *e_str, char *d_str, char *n_str) {
@@ -115,6 +123,7 @@ void rsa_init_values(RSA_Crypt *c, char *e_str, char *d_str, char *n_str) {
 	mpz_set_str(c->n, n_str, 16);
 
 	cbc->word_length = RSA_WORD_IN_LEN;
+
 }
 
 void rsa_crypt(RSA_Crypt *c, w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
@@ -131,6 +140,8 @@ void rsa_crypt(RSA_Crypt *c, w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
 	mpz_powm (x_out, x_in, c->e, c->n);
 	mpz_export (out, NULL, 1, 1, -1, 0, x_out);
 
+	mpz_clear(x_in);
+	mpz_clear(x_out);
 }
 
 void rsa_decrypt(RSA_Crypt *c, w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
@@ -146,6 +157,17 @@ void rsa_decrypt(RSA_Crypt *c, w8 in[BLOCKS_BYTE], w8 out[BLOCKS_BYTE]) {
 	mpz_import (x_in, BLOCKS_BYTE, 1, 1, -1, 0, in);
 	mpz_powm (x_out, x_in, c->d, c->n);
 	mpz_export (out, NULL, 1, 1, -1, 0, x_out);
+
+	mpz_clear(x_in);
+	mpz_clear(x_out);
+}
+
+void rsa_free(RSA_Crypt *c) {
+	
+	mpz_clear(c->e);
+	mpz_clear(c->d);
+	mpz_clear(c->n);
+
 }
 
 void rsa_power(char *base, char *power, char *mod) {
@@ -168,4 +190,9 @@ void rsa_power(char *base, char *power, char *mod) {
 	fprintf(stderr, "out = ");
 	mpz_out_str(stderr, 16, x_result);
 	fprintf(stderr, "\n");
+
+	mpz_clear(x_base);
+	mpz_clear(x_power);
+	mpz_clear(x_mod);
+	mpz_clear(x_result);
 }
