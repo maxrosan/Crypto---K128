@@ -270,3 +270,139 @@ cbc_decode_array(CBC_Crypt *c, int num_blocks, w8* VetEntraC, w8* VetEntra) {
 		free(buf);
 }
 
+
+void cbc_init(CBC_Crypt *c) {
+
+	c->encode = &cbc_encode;
+	c->decode = &cbc_decode;
+
+}
+
+void ebc_init(CBC_Crypt *c) {
+
+	c->encode = &ebc_encode;
+	c->decode = &ebc_decode;
+
+}
+
+void invert_word(w8 buf[BLOCKS_BYTE]) {
+
+	int i, mid;
+	w8 word;
+
+	mid = (BLOCKS_BYTE >> 1);
+
+	for (i = 0; i < mid; i++) {
+		word = buf[i];
+		buf[i] = buf[i + mid];
+		buf[i + mid] = word;
+	}
+
+}
+
+void ebc_encode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
+	FILE *in;
+	FILE *out;
+
+	LOG("Criptografia");
+
+	in = fopen(filename, "rb+");
+	out = fopen(fileoutput, "wb+");
+
+	if (out == 0) {
+		fprintf(stderr, "Erro ao abrir %s para escrita\n", fileoutput);
+	} else if (in != 0) {
+		w8 buf[BLOCKS_BYTE], buf_out[BLOCKS_BYTE];
+		size_t sz;
+		int i, ok;
+		w64 save_size;
+		int c = 1;
+
+		memset(buf, 0x0, BLOCKS_BYTE);
+		memset(buf_out, 0x0, BLOCKS_BYTE);
+
+		fseek(in, 0, SEEK_END);
+		save_size = (w64) ftell(in);
+		fseek(in, 0, SEEK_SET);
+
+		memcpy(buf, &save_size, sizeof(w64));
+		invert_word(buf);
+
+		cbc->crypt(cbc, buf, buf_out);
+		fwrite(buf_out, BLOCKS_BYTE, 1, out);
+
+		while (!feof(in)) {
+			c++;
+			memset(buf, 0x0, BLOCKS_BYTE);
+			sz = 0;
+			ok = 1;
+
+			for (i = 0; (i < cbc->word_length) && ok; i++) {
+				ok = fread(buf+i, 1, 1, in);
+				sz += ok;
+			}
+
+			invert_word(buf);
+
+			cbc->crypt(cbc, buf, buf_out);
+			fwrite(buf_out, BLOCKS_BYTE, 1, out);
+
+		}
+
+		fclose(in);
+		fclose(out);
+	} else {
+		fprintf(stderr, "Erro ao abrir o arquivo %s\n", filename);
+	}
+}
+
+void
+ebc_decode(CBC_Crypt *cbc, char *filename, char *fileoutput) {
+	FILE *in;
+	FILE *out;
+
+	LOG("Descriptografia");
+
+	in = fopen(filename, "rb+");
+	out = fopen(fileoutput, "wb+");
+
+	if (out == 0) {
+		fprintf(stderr, "Erro ao abrir %s para escrita\n", fileoutput);
+	} else if (in != 0) {
+		w8 buf[BLOCKS_BYTE], buf_out[BLOCKS_BYTE];
+		size_t sz;
+		int i, ok;
+		w64 save_size;
+		int c = 1;
+
+		fread(buf, BLOCKS_BYTE, 1, in);
+
+		cbc->decrypt(cbc, buf, buf_out);
+		invert_word(buf);
+
+		memcpy(&save_size, buf_out, sizeof(w64));
+		
+		i = 0;
+		while (fread(buf, BLOCKS_BYTE, 1, in) != 0) {
+
+			cbc->decrypt(cbc, buf, buf_out);
+
+			if ((i + cbc->word_length) > save_size) {
+				fwrite(buf_out, save_size % cbc->word_length, 1, out);
+			} else {
+				i += cbc->word_length;
+				fwrite(buf_out, cbc->word_length, 1, out);
+			}
+
+		}
+
+		fclose(in);
+		fclose(out);
+
+	} else {
+
+		fprintf(stderr, "Erro ao abrir o arquivo %s\n", filename);
+
+	}
+}
+

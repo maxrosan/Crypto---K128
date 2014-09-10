@@ -1,6 +1,6 @@
 
-all: aes_func.o aes.o cbc.o k128.o main.o
-	gcc -ansi -O3 $^ -o main -lm
+all: rsa.o aes_func.o aes.o cbc.o k128.o main.o
+	gcc -ansi -O3 $^ -o main -lm -lgmp
 
 aes_func.o: 
 	nasm -f elf64 aes_func.nasm
