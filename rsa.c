@@ -1,6 +1,40 @@
 
 #include "rsa.h"
 
+#define NUMBER_OF_TESTS_FOR_PRIME_VERIFYING_TESTS 1000000
+
+static int is_prime_fermat_test(mpz_t* p, int times) {
+
+	gmp_randstate_t randState;
+	mpz_t a, p_1, result;
+	int fail = 0;
+
+	gmp_randinit_default(randState);
+	mpz_init(a);
+	mpz_init(p_1);
+	mpz_init(result);
+
+	mpz_sub_ui(p_1, *p, 1);
+
+	while (times-- && !fail) {
+
+		do {
+			mpz_urandomm(a, randState, *p);
+		} while (mpz_cmp_ui(a, 0) == 0);
+
+		mpz_powm (result, a, p_1, *p);
+
+		fail = (mpz_cmp_ui(result, 1) != 0);
+	}
+
+	mpz_clear(result);
+	mpz_clear(p_1);
+	mpz_clear(a);
+	gmp_randclear(randState);
+
+	return !fail;
+}
+
 void rsa_generate_keys(char** e_str, char** d_str, char **n_str) {
 
 	int i;
@@ -51,7 +85,11 @@ calc_again:
 	mpz_nextprime(p, p);
 	mpz_nextprime(q, q);
 
-	if (mpz_cmp(p, q) == 0 || mpz_probab_prime_p(p, 1 << 20) == 0 || mpz_probab_prime_p(q, 1 << 20) == 0) {
+	if (mpz_cmp(p, q) == 0 || 
+	 !is_prime_fermat_test(&p, NUMBER_OF_TESTS_FOR_PRIME_VERIFYING_TESTS) ||
+	 !is_prime_fermat_test(&q, NUMBER_OF_TESTS_FOR_PRIME_VERIFYING_TESTS) ||
+	 mpz_probab_prime_p(p, NUMBER_OF_TESTS_FOR_PRIME_VERIFYING_TESTS) == 0 ||
+	 mpz_probab_prime_p(q, NUMBER_OF_TESTS_FOR_PRIME_VERIFYING_TESTS) == 0) {
 		goto calc_again;
 	}
 
@@ -99,6 +137,7 @@ calc_again:
 	mpz_clear(d);
 	mpz_clear(one);
 	mpz_clear(m);
+	gmp_randclear(randState);
 }
 
 void rsa_init_values(RSA_Crypt *c, char *e_str, char *d_str, char *n_str) {

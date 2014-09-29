@@ -32,7 +32,7 @@ OPTIONS
 	Defines the key will be used to encrypt or decrypt
 
 	-g
-	Generates public and private keys for RSA algorithm.
+	Generates public and private keys for RSA algorithm. The prime numbers are verified by using Fermat Test and Miller-Rabin probabilistic primality tests.
 
 INSTRUCTIONS TO COMPILE:
 
